@@ -1,3 +1,6 @@
+import json
+import re
+
 import anthropic
 import config
 
@@ -53,7 +56,6 @@ class ClaudeEngine:
                 messages=[{"role": "user", "content": user_content +
                            "\n\nRespond with JSON only."}],
             )
-            import json, re
             raw = msg.content[0].text.strip()
             m = re.search(r'\{.*\}', raw, re.DOTALL)
             parsed = json.loads(m.group()) if m else {}
@@ -88,7 +90,6 @@ class ClaudeEngine:
                 system=[{"type": "text", "text": _SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
                 messages=[{"role": "user", "content": user_content + "\n\nRespond with JSON only."}],
             )
-            import json, re
             raw = msg.content[0].text.strip()
             m = re.search(r'\{.*\}', raw, re.DOTALL)
             parsed = json.loads(m.group()) if m else {}

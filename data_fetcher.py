@@ -94,9 +94,11 @@ def find_straddle_instruments(chain: list, atm_strike: int) -> dict:
         if ce:
             result["ce_key"] = ce.get("instrument_key", "")
             result["ce_ltp"] = float(ce.get("market_data", {}).get("ltp", 0))
+            result["ce_strike"] = atm_strike
         if pe:
             result["pe_key"] = pe.get("instrument_key", "")
             result["pe_ltp"] = float(pe.get("market_data", {}).get("ltp", 0))
+            result["pe_strike"] = atm_strike
         break
     return result
 
@@ -116,7 +118,9 @@ def find_strangle_instruments(chain: list, atm_strike: int, step: int) -> dict:
         if strike == ce_strike and ce:
             result["ce_key"] = ce.get("instrument_key", "")
             result["ce_ltp"] = float(ce.get("market_data", {}).get("ltp", 0))
+            result["ce_strike"] = ce_strike
         if strike == pe_strike and pe:
             result["pe_key"] = pe.get("instrument_key", "")
             result["pe_ltp"] = float(pe.get("market_data", {}).get("ltp", 0))
+            result["pe_strike"] = pe_strike
     return result

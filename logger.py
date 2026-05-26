@@ -18,7 +18,6 @@ def _ensure_header():
 def log_trade(action: str, index: str, strategy: str, ce_strike: float, pe_strike: float,
               ce_entry: float, pe_entry: float, ce_exit: float, pe_exit: float,
               lots: int, pnl: float, reason: str):
-    _ensure_header()
     combined_entry = ce_entry + pe_entry
     combined_exit = ce_exit + pe_exit
     row = {

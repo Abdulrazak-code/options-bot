@@ -115,11 +115,11 @@ class OptionsScheduler:
             pnl, new_state = exit_straddle(ce_ltp, pe_ltp, state, reason)
             save_state(new_state, self._state_path)
             log_trade("EXIT", pos["index"], pos["strategy"],
-                      pos.get("ce_entry", 0), pos.get("pe_entry", 0),
+                      pos.get("ce_strike", 0), pos.get("pe_strike", 0),
                       pos["ce_entry"], pos["pe_entry"], ce_ltp, pe_ltp,
                       lots, pnl, reason)
             self._notifier.exit(pos["index"], pos["strategy"],
-                                pos.get("ce_key", ""), pos.get("pe_key", ""),
+                                pos.get("ce_strike", 0), pos.get("pe_strike", 0),
                                 combined_entry, combined_now, pnl, reason)
             return new_state
 
@@ -131,11 +131,11 @@ class OptionsScheduler:
                 pnl, new_state = exit_straddle(ce_ltp, pe_ltp, state, f"Claude EXIT: {decision.get('reasoning','')}")
                 save_state(new_state, self._state_path)
                 log_trade("EXIT", pos["index"], pos["strategy"],
-                          pos.get("ce_entry", 0), pos.get("pe_entry", 0),
+                          pos.get("ce_strike", 0), pos.get("pe_strike", 0),
                           pos["ce_entry"], pos["pe_entry"], ce_ltp, pe_ltp,
                           lots, pnl, f"Claude: {decision.get('reasoning','')}")
                 self._notifier.exit(pos["index"], pos["strategy"],
-                                    pos.get("ce_key", ""), pos.get("pe_key", ""),
+                                    pos.get("ce_strike", 0), pos.get("pe_strike", 0),
                                     combined_entry, combined_now, pnl, f"Claude EXIT")
                 return new_state
 
@@ -196,6 +196,8 @@ class OptionsScheduler:
         pe_key = instruments.get("pe_key", "")
         ce_ltp = instruments.get("ce_ltp", 0)
         pe_ltp = instruments.get("pe_ltp", 0)
+        ce_strike_val = instruments.get("ce_strike", atm)
+        pe_strike_val = instruments.get("pe_strike", atm)
 
         if not ce_key or not pe_key or ce_ltp <= 0 or pe_ltp <= 0:
             print(f"[{t_str}] Entry aborted — could not find valid CE/PE instruments")
@@ -204,13 +206,16 @@ class OptionsScheduler:
         combined = ce_ltp + pe_ltp
         lot_size = config.NIFTY_LOT_SIZE if index == "NIFTY" else config.BANKNIFTY_LOT_SIZE
         cost = combined * lot_size * lots
-        print(f"[{t_str}] ENTER {index} {strategy} ATM={atm} | CE={ce_ltp:.1f} PE={pe_ltp:.1f} "
-              f"combined=Rs{combined:.1f} | cost=Rs{cost:.0f} | expiry={expiry}")
+        print(f"[{t_str}] ENTER {index} {strategy} CE={ce_strike_val} PE={pe_strike_val} | "
+              f"CE_LTP={ce_ltp:.1f} PE_LTP={pe_ltp:.1f} combined=Rs{combined:.1f} | "
+              f"cost=Rs{cost:.0f} | expiry={expiry}")
 
-        new_state = enter_straddle(index, strategy, ce_key, pe_key, ce_ltp, pe_ltp, lots, state)
+        new_state = enter_straddle(index, strategy, ce_key, pe_key, ce_ltp, pe_ltp,
+                                   ce_strike_val, pe_strike_val, lots, state)
         save_state(new_state, self._state_path)
-        log_trade("ENTER", index, strategy, atm, atm, ce_ltp, pe_ltp, 0, 0, lots, 0, reasoning)
-        self._notifier.entry(index, strategy, atm, atm, ce_ltp, pe_ltp, lots)
+        log_trade("ENTER", index, strategy, ce_strike_val, pe_strike_val,
+                  ce_ltp, pe_ltp, 0, 0, lots, 0, reasoning)
+        self._notifier.entry(index, strategy, ce_strike_val, pe_strike_val, ce_ltp, pe_ltp, lots)
         return new_state
 
     def run_cycle(self):

@@ -51,7 +51,8 @@ def _place_order(instrument_key: str, qty: int, side: str) -> str:
 
 
 def enter_straddle(index: str, strategy: str, ce_key: str, pe_key: str,
-                   ce_ltp: float, pe_ltp: float, lots: int, state: dict) -> dict:
+                   ce_ltp: float, pe_ltp: float, ce_strike: int, pe_strike: int,
+                   lots: int, state: dict) -> dict:
     lot_size = config.NIFTY_LOT_SIZE if index == "NIFTY" else config.BANKNIFTY_LOT_SIZE
     qty = lot_size * lots
 
@@ -66,6 +67,8 @@ def enter_straddle(index: str, strategy: str, ce_key: str, pe_key: str,
         "qty": qty,
         "ce_key": ce_key,
         "pe_key": pe_key,
+        "ce_strike": ce_strike,
+        "pe_strike": pe_strike,
         "ce_entry": ce_ltp,
         "pe_entry": pe_ltp,
         "combined_entry": round(ce_ltp + pe_ltp, 2),
