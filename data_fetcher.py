@@ -103,6 +103,39 @@ def find_straddle_instruments(chain: list, atm_strike: int) -> dict:
     return result
 
 
+def find_iron_fly_instruments(chain: list, atm_strike: int, step: int, wing_steps: int = 2) -> dict:
+    """
+    Find all 4 legs of an Iron Fly:
+      Sell ATM CE + Sell ATM PE
+      Buy  OTM CE (atm + wing_steps*step) + Buy OTM PE (atm - wing_steps*step)
+    """
+    buy_ce_strike = atm_strike + wing_steps * step
+    buy_pe_strike = atm_strike - wing_steps * step
+    result = {}
+    for row in chain:
+        strike = int(row.get("strike_price", 0))
+        ce = row.get("call_options", {})
+        pe = row.get("put_options", {})
+        if strike == atm_strike:
+            if ce:
+                result["sell_ce_key"]    = ce.get("instrument_key", "")
+                result["sell_ce_ltp"]    = float(ce.get("market_data", {}).get("ltp", 0))
+                result["sell_ce_strike"] = atm_strike
+            if pe:
+                result["sell_pe_key"]    = pe.get("instrument_key", "")
+                result["sell_pe_ltp"]    = float(pe.get("market_data", {}).get("ltp", 0))
+                result["sell_pe_strike"] = atm_strike
+        if strike == buy_ce_strike and ce:
+            result["buy_ce_key"]    = ce.get("instrument_key", "")
+            result["buy_ce_ltp"]    = float(ce.get("market_data", {}).get("ltp", 0))
+            result["buy_ce_strike"] = buy_ce_strike
+        if strike == buy_pe_strike and pe:
+            result["buy_pe_key"]    = pe.get("instrument_key", "")
+            result["buy_pe_ltp"]    = float(pe.get("market_data", {}).get("ltp", 0))
+            result["buy_pe_strike"] = buy_pe_strike
+    return result
+
+
 def find_strangle_instruments(chain: list, atm_strike: int, step: int) -> dict:
     """
     Find OTM CE (ATM + 1 step) and OTM PE (ATM - 1 step) for a strangle.
