@@ -39,6 +39,12 @@ def is_entry_time() -> bool:
     return start <= t <= end
 
 
+def is_claude_exit_window() -> bool:
+    """Claude assesses exit once per day at 2:00–2:30 PM IST."""
+    t = ist_now()
+    return t.hour == 14 and t.minute < 30
+
+
 def is_expiry_force_exit(index: str) -> bool:
     """Force exit on expiry day at 3 PM — Thursday for NIFTY, Wednesday for BANKNIFTY."""
     t = ist_now()
@@ -138,12 +144,16 @@ class OptionsScheduler:
             return self._do_exit(state, current_ltps,
                                  f"max hold days ({days})")
 
-        decision = self._engine.assess_exit(pos, current_ltps, t_str, days, state)
-        save_state(state, self._state_path)
-
-        if decision.get("action") == "EXIT":
-            return self._do_exit(state, current_ltps,
-                                 f"Claude: {decision.get('reasoning', '')}")
+        # Claude assesses exit once per day at 2 PM — not every 30-min cycle
+        today = str(ist_now().date())
+        already_asked = state.get("claude_exit_checked_date") == today
+        if is_claude_exit_window() and not already_asked:
+            state["claude_exit_checked_date"] = today
+            decision = self._engine.assess_exit(pos, current_ltps, t_str, days, state)
+            print(f"[{t_str}] Claude exit check → {decision.get('action')} | {decision.get('reasoning','')}")
+            if decision.get("action") == "EXIT":
+                return self._do_exit(state, current_ltps,
+                                     f"Claude: {decision.get('reasoning', '')}")
 
         save_state(state, self._state_path)
         return state
