@@ -90,3 +90,81 @@ def test_get_atm_strike():
     assert get_atm_strike(24023.5, 50) == 24000
     assert get_atm_strike(24076.0, 50) == 24100
     assert get_atm_strike(48350.0, 100) == 48400
+
+
+# ---------------------------------------------------------------------------
+# order_executor tests
+# ---------------------------------------------------------------------------
+
+os.environ.setdefault("PAPER_TRADE", "true")
+os.environ.setdefault("NIFTY_LOT_SIZE", "75")
+os.environ.setdefault("BANKNIFTY_LOT_SIZE", "35")
+os.environ.setdefault("PRODUCT_TYPE", "NRML")
+
+from order_executor import calculate_pnl, enter_iron_fly, exit_iron_fly
+
+
+def _make_position():
+    return {
+        "index": "NIFTY",
+        "strategy": "IRON_FLY",
+        "lots": 1,
+        "lot_size": 75,
+        "qty": 75,
+        "sell_ce_key": "CE24000", "sell_ce_strike": 24000, "sell_ce_entry": 120.0,
+        "sell_pe_key": "PE24000", "sell_pe_strike": 24000, "sell_pe_entry": 115.0,
+        "buy_ce_key":  "CE24100", "buy_ce_strike": 24100,  "buy_ce_entry": 45.0,
+        "buy_pe_key":  "PE23900", "buy_pe_strike": 23900,  "buy_pe_entry": 30.0,
+        "net_credit": 160.0,
+        "max_profit_inr": 12000.0,
+        "entry_date": "2026-05-26",
+    }
+
+
+def test_calculate_pnl_profit():
+    pos = _make_position()
+    ltps = {"CE24000": 80.0, "PE24000": 70.0, "CE24100": 25.0, "PE23900": 15.0}
+    # current_net = (80+70)-(25+15) = 110; pnl = (160-110)*75 = 3750
+    pnl = calculate_pnl(pos, ltps)
+    assert pnl == 3750.0
+
+
+def test_calculate_pnl_loss():
+    pos = _make_position()
+    ltps = {"CE24000": 400.0, "PE24000": 2.0, "CE24100": 200.0, "PE23900": 1.0}
+    # current_net = (400+2)-(200+1) = 201; pnl = (160-201)*75 = -3075
+    pnl = calculate_pnl(pos, ltps)
+    assert pnl == -3075.0
+
+
+def _make_state():
+    return {"position": None, "daily_pnl": 0.0, "total_pnl": 0.0,
+            "claude_spend_usd": 0.0, "last_trade_date": None}
+
+
+def _make_instruments():
+    return {
+        "sell_ce_key": "CE24000", "sell_ce_strike": 24000, "sell_ce_ltp": 120.0,
+        "sell_pe_key": "PE24000", "sell_pe_strike": 24000, "sell_pe_ltp": 115.0,
+        "buy_ce_key":  "CE24100", "buy_ce_strike": 24100,  "buy_ce_ltp": 45.0,
+        "buy_pe_key":  "PE23900", "buy_pe_strike": 23900,  "buy_pe_ltp": 30.0,
+    }
+
+
+def test_enter_iron_fly_paper_trade():
+    state = enter_iron_fly("NIFTY", _make_instruments(), 1, _make_state())
+    pos = state["position"]
+    assert pos is not None
+    assert pos["strategy"] == "IRON_FLY"
+    assert pos["net_credit"] == 160.0
+    assert pos["sell_ce_strike"] == 24000
+    assert pos["buy_ce_strike"] == 24100
+
+
+def test_exit_iron_fly_paper_trade():
+    state = enter_iron_fly("NIFTY", _make_instruments(), 1, _make_state())
+    ltps = {"CE24000": 80.0, "PE24000": 70.0, "CE24100": 25.0, "PE23900": 15.0}
+    pnl, new_state = exit_iron_fly(ltps, state, "test exit")
+    assert pnl == 3750.0
+    assert new_state["position"] is None
+    assert new_state["total_pnl"] == 3750.0
