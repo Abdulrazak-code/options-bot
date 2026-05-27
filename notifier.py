@@ -19,26 +19,27 @@ class Notifier:
         except Exception:
             pass
 
-    def entry(self, index: str, strategy: str, ce_strike, pe_strike, ce_ltp, pe_ltp, lots: int):
-        combined = ce_ltp + pe_ltp
+    def entry(self, index: str, instruments: dict, net_credit: float,
+              max_loss: float, lots: int):
         lot_size = config.NIFTY_LOT_SIZE if index == "NIFTY" else config.BANKNIFTY_LOT_SIZE
-        cost = combined * lot_size * lots
+        max_profit = round(net_credit * lot_size * lots, 0)
         self.send(
-            f"OPTIONS ENTRY\n"
-            f"Index: {index} {strategy}\n"
-            f"CE {ce_strike}: Rs{ce_ltp:.1f}\n"
-            f"PE {pe_strike}: Rs{pe_ltp:.1f}\n"
-            f"Combined: Rs{combined:.1f} | Cost: Rs{cost:.0f}\n"
-            f"Lots: {lots} | {'PAPER' if config.PAPER_TRADE else 'LIVE'}"
+            f"IRON FLY ENTRY\n"
+            f"Index: {index} | Lots: {lots} | {'PAPER' if config.PAPER_TRADE else 'LIVE'}\n"
+            f"SELL CE {instruments['sell_ce_strike']}: Rs{instruments['sell_ce_ltp']:.1f}\n"
+            f"SELL PE {instruments['sell_pe_strike']}: Rs{instruments['sell_pe_ltp']:.1f}\n"
+            f"BUY  CE {instruments['buy_ce_strike']}:  Rs{instruments['buy_ce_ltp']:.1f}\n"
+            f"BUY  PE {instruments['buy_pe_strike']}:  Rs{instruments['buy_pe_ltp']:.1f}\n"
+            f"Net Credit: Rs{net_credit:.1f} | "
+            f"Max Profit: Rs{max_profit:.0f} | Max Loss: Rs{max_loss:.0f}"
         )
 
-    def exit(self, index: str, strategy: str, ce_strike, pe_strike,
-             entry_combined, exit_combined, pnl: float, reason: str):
-        pct = (exit_combined - entry_combined) / entry_combined * 100 if entry_combined else 0
+    def exit(self, index: str, position: dict, pnl: float, reason: str):
         self.send(
-            f"OPTIONS EXIT — {reason}\n"
-            f"Index: {index} {strategy}\n"
-            f"CE {ce_strike} | PE {pe_strike}\n"
-            f"Combined: Rs{entry_combined:.1f} → Rs{exit_combined:.1f} ({pct:+.1f}%)\n"
+            f"IRON FLY EXIT — {reason}\n"
+            f"Index: {index}\n"
+            f"Sell {position['sell_ce_strike']}/{position['sell_pe_strike']} | "
+            f"Buy {position['buy_ce_strike']}/{position['buy_pe_strike']}\n"
+            f"Net Credit collected: Rs{position['net_credit']:.1f}\n"
             f"P&L: Rs{pnl:+.0f}"
         )
