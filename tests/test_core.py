@@ -178,6 +178,66 @@ import tempfile
 from logger import log_trade
 
 
+# ---------------------------------------------------------------------------
+# scheduler time-logic tests
+# ---------------------------------------------------------------------------
+
+from unittest.mock import patch
+from datetime import datetime, timezone, timedelta as tdelta
+
+_IST = timezone(tdelta(hours=5, minutes=30))
+
+
+def _mock_ist(hour, minute, weekday=0):
+    # weekday 0=Mon ... 6=Sun; use date 2026-05-25 (Mon) + offset
+    base = datetime(2026, 5, 25, hour, minute, 0, tzinfo=_IST)
+    return base.replace(day=25 + weekday)
+
+
+import scheduler as sched
+
+
+def test_is_market_open_weekday():
+    with patch("scheduler.ist_now", return_value=_mock_ist(10, 0, weekday=0)):
+        assert sched.is_market_open() is True
+
+
+def test_is_market_open_weekend():
+    with patch("scheduler.ist_now", return_value=_mock_ist(10, 0, weekday=5)):
+        assert sched.is_market_open() is False
+
+
+def test_is_entry_time_in_window():
+    with patch("scheduler.ist_now", return_value=_mock_ist(9, 45)):
+        assert sched.is_entry_time() is True
+
+
+def test_is_entry_time_outside_window():
+    with patch("scheduler.ist_now", return_value=_mock_ist(10, 30)):
+        assert sched.is_entry_time() is False
+
+
+def test_is_expiry_force_exit_nifty_thursday():
+    with patch("scheduler.ist_now", return_value=_mock_ist(15, 5, weekday=3)):
+        assert sched.is_expiry_force_exit("NIFTY") is True
+
+
+def test_is_expiry_force_exit_nifty_not_thursday():
+    with patch("scheduler.ist_now", return_value=_mock_ist(15, 5, weekday=0)):
+        assert sched.is_expiry_force_exit("NIFTY") is False
+
+
+def test_days_held():
+    with patch("scheduler.ist_now", return_value=_mock_ist(10, 0, weekday=2)):
+        pos = {"entry_date": "2026-05-25"}
+        assert sched._days_held(pos) == 2
+
+
+# ---------------------------------------------------------------------------
+# logger tests
+# ---------------------------------------------------------------------------
+
+
 def test_log_trade_creates_csv():
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w") as f:
         tmp = f.name
