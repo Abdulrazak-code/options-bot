@@ -168,3 +168,40 @@ def test_exit_iron_fly_paper_trade():
     assert pnl == 3750.0
     assert new_state["position"] is None
     assert new_state["total_pnl"] == 3750.0
+
+
+# ---------------------------------------------------------------------------
+# logger tests
+# ---------------------------------------------------------------------------
+
+import tempfile
+from logger import log_trade
+
+
+def test_log_trade_creates_csv():
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w") as f:
+        tmp = f.name
+    import logger as lg
+    original = lg._LOG_FILE
+    lg._LOG_FILE = tmp
+    try:
+        log_trade("ENTER", "NIFTY", "IRON_FLY",
+                  24000, 24000, 24100, 23900,
+                  120.0, 115.0, 45.0, 30.0,
+                  0, 0, 0, 0,
+                  160.0, 1, 0, "test entry")
+        log_trade("EXIT", "NIFTY", "IRON_FLY",
+                  24000, 24000, 24100, 23900,
+                  120.0, 115.0, 45.0, 30.0,
+                  80.0, 70.0, 25.0, 15.0,
+                  160.0, 1, 3750.0, "target-profit")
+        import csv
+        with open(tmp) as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 2
+        assert rows[0]["action"] == "ENTER"
+        assert rows[1]["action"] == "EXIT"
+        assert float(rows[1]["pnl"]) == 3750.0
+    finally:
+        lg._LOG_FILE = original
+        os.unlink(tmp)
